@@ -12,7 +12,8 @@
 require_once(dirname(__FILE__)."/../class.geoengine.php");
 class geoimport extends geoengine {
 
-	public $dbName = "geo";
+	//public $dbName = "geo";
+    public $dbName;
 
 	//tablenames (for import process only)
 	const RAWPLACES = "raw_places";
@@ -69,7 +70,7 @@ class geoimport extends geoengine {
 	* Populate Sibling Places -- those of same type having same parent
 	* Processes only those not processed
 	* @return Bool
-	
+
 	public function populateSiblings() {
 		echo "Populating siblings...\n";
 		flush();
@@ -81,14 +82,14 @@ class geoimport extends geoengine {
 		while ($row1 = $result1->fetch_array(MYSQLI_ASSOC)) {
 			$i++;
 			if ($this->siblingsAreCalc($row1['woeid'])){ //already calculated check
-				continue; 
+				continue;
 			}
 			$parentID = $this->getParent($row1['woeid']);
 			if (!$parentID) { //no parent check  (unlikely)
 				continue;
 			}
 			//get children of parent
-			$aChildren = $this->getChildren($parentID);		
+			$aChildren = $this->getChildren($parentID);
 			if (empty ($aChildren)) { //no children check
 				continue;
 			}
@@ -121,11 +122,11 @@ class geoimport extends geoengine {
 		return true;
 	}
 	*/
-	
-	
+
+
 	/**
 	 * Checks whether siblings have been calculated for this woeid
-	
+
 	protected function siblingsAreCalc($woeid){
 		$SQL = "SELECT woeid FROM " . self :: TABLESIBLINGS . " WHERE woeid=".$woeid;
 		$result = $this->query($SQL);
@@ -169,10 +170,10 @@ class geoimport extends geoengine {
 		return $row['res'];
 	}
 	*/
-	
+
 	/**
 	* Populate Descendants
-	* This process is slightly unusual in that inserts occur in the get() rather than populate() method. 
+	* This process is slightly unusual in that inserts occur in the get() rather than populate() method.
 	* The idea is to ensure that descendants are written even when assessed as part of a recursive calculation
 	* @return Bool
 	*/
@@ -185,7 +186,7 @@ class geoimport extends geoengine {
 		$total = $result0->num_rows;
 		unset($result0);
 		unset($SQL0);
-		
+
 		//select and iterate through each woeid
 		$SQL1 = "SELECT DISTINCT parent_id FROM " . self :: TABLEPARENTS. " WHERE parent_id != 0 AND parent_id != 1";
 		$SQL1 .= " AND parent_id NOT IN (SELECT woeid FROM " . self :: TABLEDESCENDANTS . ")"; //as-yet unprocessed
@@ -197,14 +198,14 @@ class geoimport extends geoengine {
 				flush();
 				//double-check that this woeid has not been calculated
 				if (!$this->descAreCalc($row1['parent_id'])){
-					$this->getDescendants($row1['parent_id']); //iterate, generate _and_ writes 	
+					$this->getDescendants($row1['parent_id']); //iterate, generate _and_ writes
 				}
 			}
 		}
 		echo "\t-complete\n";
 		return true;
 	}
-	
+
 	/**
  	* Checks whether descendants have been calculated
  	* @param into woeid
@@ -292,8 +293,8 @@ class geoimport extends geoengine {
 		if ($desc = parent :: getDescendants($woeid)) {
 			return $desc;
 		}
-		//get children of woeid	
-		$aChildren = $this->getChildren($woeid);	
+		//get children of woeid
+		$aChildren = $this->getChildren($woeid);
 		//return empty  arrayif not children
 		if (empty($aChildren)){
 			return array();
@@ -306,7 +307,7 @@ class geoimport extends geoengine {
 		}
 		//iterate and recurse
 		foreach ($aChildren as $child) {
-			//merge child with its descendents	
+			//merge child with its descendents
 			$tempDesc = $this->getDescendants($child);
 			if (!empty($tempDesc)){
 				$tempDesc[] = $child;
@@ -314,7 +315,7 @@ class geoimport extends geoengine {
 			} else {
 				$tempDesc = array($child);
 				fwrite($fp, $delineator.$child);
-			}			
+			}
 			unset($tempDesc);
 		}
 		//close file
@@ -326,14 +327,14 @@ class geoimport extends geoengine {
 			echo "Failed reading ".$tempFile."; exiting.\n";
 			exit;
 		};
-		
+
 		//remove file
 		unlink($tempFile);
-		
+
 		$tempArray = explode($delineator,$tempArray); //create array from file contents
 		$tempArray = array_filter($tempArray); //remove empty items
 		$tempArray = array_unique($tempArray); //double-check that we do not have dupes in the array
-		
+
 		//insert descendants into descendants table
 		$this->insertDescendants($woeid, $tempArray);
 
@@ -486,7 +487,7 @@ class geoimport extends geoengine {
 			echo "Could not connect to database\n";
 			exit;
 		}
-		$db->set_charset("utf8"); //set client to utf8 
+		$db->set_charset("utf8"); //set client to utf8
 		$SQL = "SHOW DATABASES";
 		$result = $db->query($SQL);
 		if ($result->num_rows > 0) {
@@ -497,7 +498,7 @@ class geoimport extends geoengine {
 		} else {
 			return false;
 		}
-			
+
 	}
 
 	/**Create database and tables from external script
@@ -516,13 +517,13 @@ class geoimport extends geoengine {
 			echo "Could not connect to database\n";
 			exit;
 		}
-		$db->set_charset("utf8"); //set client to utf8 
+		$db->set_charset("utf8"); //set client to utf8
 		$SQL = "CREATE DATABASE IF NOT EXISTS " . $this->getDBName(). " CHARACTER SET utf8 COLLATE utf8_unicode_ci;";
 		$result = $db->query($SQL);
 		if (!$result) {
 			echo "Error creating database " . $this->getDBName() . ": " . $db->error." \n";
 			exit;
-		} 
+		}
 		if (!file_exists("geo.sql")) {
 			echo "Cannot find geo.sql in" . dirname(__FILE__);
 			exit;
@@ -549,14 +550,17 @@ class geoimport extends geoengine {
 	 * Returns tables in database
 	 */
 	 public function showTables(){
+         $tables = array();
 		$SQL = "SHOW TABLES";
-		$result = $this->query($SQL);	
-		while ($row = $result->fetch_array()) { 	
-			$tables[] = $row[0];
-		}
+		$result = $this->query($SQL);
+        if ($result) {
+    		while ($row = $result->fetch_array()) {
+    			$tables[] = $row[0];
+    		}
+        }
 		return $tables;
 	 }
-	 
+
 	/**
 	 * Adds alpha2 country code to names table (provides convenient shortcut)
 	 * @return bool
@@ -587,7 +591,7 @@ class geoimport extends geoengine {
 			echo "Table " . self :: TABLEPLACETYPES . " does not exist. See " . $this->logFile . " for debug information\n";
 			return false;
 		}
-		
+
 		//see if already populated
 		$SQL1 = "SELECT id AS res FROM " . self :: TABLEPLACETYPES;
 		$result1 = $this->query($SQL1);
@@ -668,7 +672,7 @@ class geoimport extends geoengine {
 		echo "Populating parents...\n";
 		$this->disableKeys(self :: TABLEPARENTS);
 		$SQL = "INSERT INTO " . self :: TABLEPARENTS . " (woeid,parent_id)
-						SELECT woeid, parent 
+						SELECT woeid, parent
 						FROM  " . self :: RAWPLACES;
 		if ($this->query($SQL)) {
 			$this->enableKeys(self :: TABLEPARENTS);
@@ -735,17 +739,22 @@ class geoimport extends geoengine {
 	 */
 	protected function populatePreferredNames() {
 		//update contents
-		$SQL = "INSERT INTO " . self :: TABLEPLACENAMES . "(woeid,pref,name,nametype,lang)
+		/*$SQL = "INSERT INTO " . self :: TABLEPLACENAMES . "(woeid,pref,name,nametype,lang)
 						SELECT woeid, 1, name, NULL, lang
-						FROM " . self :: RAWPLACES;
+						FROM " . self :: RAWPLACES;*/
+        // Todo: check the config diffs between 5.1.67 and 5.6.16
+        $SQL = "INSERT INTO " . self :: TABLEPLACENAMES . "(woeid,pref,name,nametype,placetype,lang)
+                        SELECT woeid, 1, name, NULL, 0, lang
+                        FROM " . self :: RAWPLACES;
+
 		$this->query($SQL);
 		//set placename type (ENG)
 		$SQL = "UPDATE ".self :: TABLEPLACENAMES." SET nametype=\"P\" WHERE lang = \"ENG\" AND nametype IS NULL";
 		$this->query($SQL);
 		//set placename type (other)
 		$SQL = "UPDATE ".self :: TABLEPLACENAMES." SET nametype=\"Q\" WHERE lang != \"ENG\" AND nametype IS NULL";
-		$this->query($SQL);	
-		return true;	
+		$this->query($SQL);
+		return true;
 	}
 
 	/**
@@ -756,21 +765,25 @@ class geoimport extends geoengine {
 		//add new column to raw aliases
 		$SQL = "ALTER TABLE ".self::RAWALIASES." ADD COLUMN `pref` TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER `name`";
 		$result = $this->query($SQL);
-		
+
 		//update raw pref
 		$SQL = "UPDATE ". self :: RAWALIASES ." SET pref=1 WHERE nametype=\"P\" OR nametype=\"Q\"";
 		$result = $this->query($SQL);
-		
+
 		//update placenames with preferred/no-preferred
-		$SQL = "INSERT INTO " . self :: TABLEPLACENAMES . "(woeid,pref,name,nametype,lang)
-					SELECT " . self :: RAWALIASES . ".woeid, pref, " . self :: RAWALIASES . ".name, " . self :: RAWALIASES . ".nametype," . self :: RAWALIASES . ".lang
+		$SQL = "INSERT INTO " . self :: TABLEPLACENAMES . "(woeid,pref,name,nametype,placetype,lang)
+					SELECT " . self :: RAWALIASES . ".woeid, pref, " .
+                        self :: RAWALIASES . ".name, " .
+                        self :: RAWALIASES . ".nametype," .
+                        "0," .
+                        self :: RAWALIASES . ".lang
 					FROM " . self :: RAWALIASES;
 		$result = $this->query($SQL);
-		
+
 		//remove raw pref column created above
 		$SQL = "ALTER TABLE ".self::RAWALIASES." DROP COLUMN `pref`";
 		$result = $this->query($SQL);
-		
+
 		return true;
 	}
 
@@ -780,7 +793,7 @@ class geoimport extends geoengine {
 	*/
 	protected function typePlaceNames() {
 		$SQL = "UPDATE " . self :: TABLEPLACENAMES . "," . self :: TABLEPLACES . "
-						SET " . self :: TABLEPLACENAMES . ".placetype=" . self :: TABLEPLACES . ".placetype 
+						SET " . self :: TABLEPLACENAMES . ".placetype=" . self :: TABLEPLACES . ".placetype
 						WHERE " . self :: TABLEPLACENAMES . ".woeid=" . self :: TABLEPLACES . ".woeid";
 		if ($this->query($SQL)) {
 			return true;
@@ -818,8 +831,8 @@ class geoimport extends geoengine {
 		$this->disableKeys(self :: TABLEPLACES); //Disable keys
 		//Optimise places
 		$SQL = "INSERT INTO " . self :: TABLEPLACES . " (woeid,name,placetypename,country)
-						SELECT woeid, name, placetype, iso 
-						FROM  " . self :: RAWPLACES . " 
+						SELECT woeid, name, placetype, iso
+						FROM  " . self :: RAWPLACES . "
 						WHERE placetype != \"sport\" AND woeid NOT IN (SELECT woeid FROM " . self :: TABLEPLACES . ")"; //sportsteams not included (because they're not f'ing places)
 		$result = $this->query($SQL);
 		if ($result) {
@@ -838,10 +851,10 @@ class geoimport extends geoengine {
 	* @return Bool
 	*/
 	public function importAdjacencies($file) {
-		echo "Importing adjacencies data from " . $file . "...";
+		echo "Importing adjacencies data from " . basename($file) . "...";
 		$SQL = "LOAD DATA LOCAL INFILE '" . $file . "'
 						INTO TABLE " . self :: RAWADJACENCIES . "
-						FIELDS TERMINATED BY '\t'  ENCLOSED BY '\"' 
+						FIELDS TERMINATED BY '\t'  ENCLOSED BY '\"'
 						IGNORE 1 LINES";
 		if ($this->query($SQL)) {
 			echo " complete\n";
@@ -857,8 +870,8 @@ class geoimport extends geoengine {
 	* @return Bool
 	*/
 	public function importAliases($file) {
-		echo "Importing alias data from " . $file . "...";
-		$SQL = "LOAD DATA LOCAL INFILE '" . $file . "' 
+		echo "Importing alias data from " . basename($file) . "...";
+		$SQL = "LOAD DATA LOCAL INFILE '" . $file . "'
 						INTO TABLE " . self :: RAWALIASES . "
 						FIELDS TERMINATED BY '\t'  ENCLOSED BY '\"'
 						IGNORE 1 LINES";
@@ -876,8 +889,8 @@ class geoimport extends geoengine {
 	* @return Bool
 	*/
 	public function importPlaces($file) {
-		echo "Importing place data from " . $file . "...";
-		$SQL = "LOAD DATA LOCAL INFILE '" . $file . "' 
+		echo "Importing place data from " . basename($file) . "...";
+		$SQL = "LOAD DATA LOCAL INFILE '" . $file . "'
 						INTO TABLE " . self :: RAWPLACES . "
 						FIELDS TERMINATED BY '\t'  ENCLOSED BY '\"'
 						IGNORE 1 LINES";
@@ -892,13 +905,13 @@ class geoimport extends geoengine {
 
 	/**
 	 * show a status bar in the console
-	 * 
+	 *
 	 * Copyright (c) 2010, dealnews.com, Inc.
 		All rights reserved.
-		
+
 		Redistribution and use in source and binary forms, with or without
 		modification, are permitted provided that the following conditions are met:
-		
+
 		 * Redistributions of source code must retain the above copyright notice,
 		   this list of conditions and the following disclaimer.
 		 * Redistributions in binary form must reproduce the above copyright
@@ -907,7 +920,7 @@ class geoimport extends geoengine {
 		 * Neither the name of dealnews.com, Inc. nor the names of its contributors
 		   may be used to endorse or promote products derived from this software
 		   without specific prior written permission.
-		
+
 		THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 		AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 		IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -919,14 +932,14 @@ class geoimport extends geoengine {
 		CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 		ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 		POSSIBILITY OF SUCH DAMAGE.
-	 * 
+	 *
 	 * <code>
 	 * for($x=1;$x<=100;$x++){
-	 * 
+	 *
 	 *     show_status($x, 100);
-	 * 
+	 *
 	 *     usleep(100000);
-	 *                           
+	 *
 	 * }
 	 * </code>
 	 *
@@ -965,7 +978,7 @@ class geoimport extends geoengine {
 		$elapsed = $now - $start_time;
 		//$status_bar .= " remaining";
 		//$status_bar .= " remaining: " . number_format($eta) . " sec. elapsed: " . number_format($elapsed) . " sec.";
-		
+
 		echo "$status_bar  ";
 		flush();
 		// when done, send a newline
@@ -973,5 +986,4 @@ class geoimport extends geoengine {
 		    echo "\n";
 		}
 	}
-
 }
