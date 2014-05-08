@@ -5,15 +5,15 @@
  * @author Tyler Bell tylerwbell[at]gmail[dot]com
  * @copyright (C) 2009-2011 - Tyler Bell
  */
- 
- 
+
+
 
 class db {
-	const CONFIGFILE = "config.ini"; 	//script and db configuration	
+	const CONFIGFILE = "config.ini"; 	//script and db configuration
 	public static $db = null;			//connection
 	protected static $instance = null;  //db instance
 	private function __clone(){}
-	private function __construct() {		
+	private function __construct() {
 		//get config
 		$thisDir = dirname(__FILE__);
 		$configFile = $thisDir."/".self :: CONFIGFILE;		//config file assumed to be in same directory as this file
@@ -22,30 +22,30 @@ class db {
 		} else {
 			//can't operate without db configs, so barf and bail
 			if (is_file($configFile)){
-				$errMsg = "unreadable config file " . $configFile . "; check file permissions\n";	
+				$errMsg = "unreadable config file " . $configFile . "; check file permissions\n";
 			} else {
-				$errMsg = "missing config file " . $configFile . "\n";	
+				$errMsg = "missing config file " . $configFile . "\n";
 			}
 			throw new Exception(__METHOD__." ".$errMsg);
-			return false;	
+			return false;
 		}
 		//connect
 		try {
-            if ($cfg['socket']) {
-                $this->db = new mysqli($cfg['host'], $cfg['username'], $cfg['password'],$cfg['database'], null, $cfg['socket']);
+            if (isset($cfg['socket']) && !empty($cfg['socket'])) {
+                self::$db = new mysqli($cfg['host'], $cfg['username'], $cfg['password'],$cfg['database'], null, $cfg['socket']);
             }
-            elseif ($cfg['port']) {
-                $this->db = new mysqli($cfg['host'], $cfg['username'], $cfg['password'],$cfg['database'], $cfg['port'], null);
+            elseif (isset($cfg['port']) && !empty($cfg['port'])) {
+                self::$db = new mysqli($cfg['host'], $cfg['username'], $cfg['password'],$cfg['database'], $cfg['port'], null);
             }
             else {
-                $this->db = new mysqli($cfg['host'], $cfg['username'], $cfg['password'],$cfg['database'], null, null);
+                self::$db = new mysqli($cfg['host'], $cfg['username'], $cfg['password'],$cfg['database'], null, null);
             }
 		} catch (Exception $e) {
 			$errMsg = "MySQL Connect to " . $cfg['host'] . "/" . $cfg['database'] . " failed: %s\n". mysqli_connect_error();
 			throw new Exception(__METHOD__." ".$e->getMessage().": ".$errMsg);
 			return false;
 		}
-		$this->db->set_charset("utf8"); //set client to utf8 
+		self::$db->set_charset("utf8"); //set client to utf8
 		return true;
 	}
 
@@ -66,7 +66,7 @@ class db {
 	 * @return string
 	 */
 	public function escapeString($str){
-		return $this->db->real_escape_string($str);
+		return self::$db->real_escape_string($str);
 	}
 
 	/**
@@ -75,50 +75,50 @@ class db {
 	* @return mysql(i) result object
 	*/
 	public function query($SQL) {
-		$result = $this->db->query($SQL);
-		if ($this->db->error) {
-			$errMsg = $this->db->error . " (" . $SQL . ")";
+		$result = self::$db->query($SQL);
+		if (self::$db->error) {
+			$errMsg = self::$db->error . " (" . $SQL . ")";
 			throw new Exception(__METHOD__." ".$errMsg);
 			return false;
 		}
 		return $result;
-	}	
-	
+	}
+
 	/**
 	* Multi Query database
 	* @param string SQL SQL statement
 	* @return mysql(i) result object
 	*/
 	public function multiQuery($SQL) {
-		if ($this->db->multi_query($SQL)) { 
-	    $i = 0; 
-		    do { 
-		        $i++; 
-		    } while ($this->db->next_result()); 
-		} 
-		if ($this->db->errno) { 
-		    $errMsg = $this->db->error . " (" . $SQL . ")";
+		if (self::$db->multi_query($SQL)) {
+	    $i = 0;
+		    do {
+		        $i++;
+		    } while (self::$db->next_result());
+		}
+		if (self::$db->errno) {
+		    $errMsg = self::$db->error . " (" . $SQL . ")";
 			throw new Exception(__METHOD__." ".$errMsg);
 		    return false;
 		} else {
 			return true;
 		}
-		
+
 		/*
-		$result = $this->db->multi_query($SQL);
-		if ($this->db->error) {
-			$errMsg = $this->db->error . " (" . $SQL . ")";
+		$result = self::$db->multi_query($SQL);
+		if (self::$db->error) {
+			$errMsg = self::$db->error . " (" . $SQL . ")";
 			throw new Exception(__METHOD__." ".$errMsg);
 			return false;
 		}
 		//iterate results to ensure that all queries are processed
 		if ($result = $mysqli->use_result()) {
-			
+
 		} else {
 			return false;
 		}
 		*/
-	}	
-} 
- 
+	}
+}
+
 ?>
