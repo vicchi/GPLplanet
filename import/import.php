@@ -78,6 +78,8 @@ foreach ($files as $file){
 	}
 }
 
+$have_coords = (isset($files['coords']) && !empty($files['coords']));
+
 echo "\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
 echo "Import Files Verified\n";
 //check db exists
@@ -139,65 +141,84 @@ switch ($lastStage) {
 			$importEngine->addTracker(4,$importProgress);
 		}
 
-	//populate places 5
-	case 4:
-		if (!$importEngine->populatePlaces()){
-			exit;
-		} else {
-			$importEngine->addTracker(5,$importProgress);
-		}
-	//populate place type codes 6
+    case 4:
+        if ($have_coords) {
+            if (!$importEngine->importCoords($files['coords'])) {
+                exit;
+            }
+        }
+
+        $importEngine->addTracker(5, $importProgress);
+
+    //populate places 5
 	case 5:
-		if (!$importEngine->addPlaceTypeCodes()){
+		if (!$importEngine->populatePlaces()){
 			exit;
 		} else {
 			$importEngine->addTracker(6,$importProgress);
 		}
-	//populate place names 7
-	case 6:
-		//@todo: placenames table should be truncated, as this script cannot pick up where left off (efficiency)
-		if (!$importEngine->populatePlaceNames()){
-			exit;
-		} else {
-			$importEngine->addTracker(7,$importProgress);
-		}
-	//populate adjacencies 8
+
+    case 6:
+        if ($have_coords) {
+            if (!$importEngine->populateCoords()) {
+                exit;
+            }
+        }
+
+        $importEngine->addTracker(7, $importProgress);
+
+	//populate place type codes 6
 	case 7:
-		if (!$importEngine->populateAdjacencies()){
+		if (!$importEngine->addPlaceTypeCodes()){
 			exit;
 		} else {
 			$importEngine->addTracker(8,$importProgress);
 		}
-	//populate parents 9
+	//populate place names 7
 	case 8:
-		if (!$importEngine->populateParents()){
+		//@todo: placenames table should be truncated, as this script cannot pick up where left off (efficiency)
+		if (!$importEngine->populatePlaceNames()){
 			exit;
 		} else {
 			$importEngine->addTracker(9,$importProgress);
 		}
-	//populate children 10
+	//populate adjacencies 8
 	case 9:
-		if (!$importEngine->populateChildren()){
+		if (!$importEngine->populateAdjacencies()){
 			exit;
 		} else {
 			$importEngine->addTracker(10,$importProgress);
 		}
-	//populate ancestors 11
+	//populate parents 9
 	case 10:
-		if (!$importEngine->populateAncestors()){
+		if (!$importEngine->populateParents()){
 			exit;
 		} else {
 			$importEngine->addTracker(11,$importProgress);
 		}
-	//populate descendants 12
+	//populate children 10
 	case 11:
-		if (!$importEngine->populateDescendants()){
+		if (!$importEngine->populateChildren()){
 			exit;
 		} else {
 			$importEngine->addTracker(12,$importProgress);
 		}
+	//populate ancestors 11
+	case 12:
+		if (!$importEngine->populateAncestors()){
+			exit;
+		} else {
+			$importEngine->addTracker(13,$importProgress);
+		}
+	//populate descendants 12
+	case 13:
+		if (!$importEngine->populateDescendants()){
+			exit;
+		} else {
+			$importEngine->addTracker(14,$importProgress);
+		}
     //Complete import
-    case 12:
+    case 14:
 		$importEngine->dropTrackerTable($importProgress);
 		echo "Import complete\n";
 }

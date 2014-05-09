@@ -19,6 +19,7 @@ class geoimport extends geoengine {
 	const RAWPLACES = "raw_places";
 	const RAWALIASES = "raw_aliases";
 	const RAWADJACENCIES = "raw_adjacencies";
+    const RAWCOORDS = "raw_coords";
 	const TEMPTABLEDESC = "temp_descendants";
 
 	//=============== METHODS ==================
@@ -845,6 +846,28 @@ class geoimport extends geoengine {
 		}
 	}
 
+    public function populateCoords() {
+        echo "Populating place coordinates...";
+        $this->disableKeys(self::TABLEPLACES);
+        $SQL = "UPDATE " . self::TABLEPLACES . " JOIN " . self::RAWCOORDS . " ON " .
+            self::TABLEPLACES . ".woeid = " . self::RAWCOORDS . ".woeid SET " .
+            self::TABLEPLACES . ".centroid_lat = " . self::RAWCOORDS . ".centroid_lat, " .
+            self::TABLEPLACES . ".centroid_lon = " . self::RAWCOORDS . ".centroid_lon, " .
+            self::TABLEPLACES . ".bbox_sw_lat = " . self::RAWCOORDS . ".bbox_sw_lat, " .
+            self::TABLEPLACES . ".bbox_sw_lon = " . self::RAWCOORDS . ".bbox_sw_lon, " .
+            self::TABLEPLACES . ".bbox_ne_lat = " . self::RAWCOORDS . ".bbox_ne_lat, " .
+            self::TABLEPLACES . ".bbox_ne_lon = " . self::RAWCOORDS . ".bbox_ne_lon;";
+        $result = $this->query($SQL);
+        if ($result) {
+            $this->enableKeys(self::TABLEPLACES);
+            echo " complete\n";
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
 	/**
 	* Populates raw adjacencies table with file contents
 	* @param string $file File to import
@@ -902,6 +925,21 @@ class geoimport extends geoengine {
 			return false;
 		}
 	}
+
+    public function importCoords($file) {
+        echo "Importing place coordinates data from " . basename($file) . "...";
+        $SQL = "LOAD DATA LOCAL INFILE '" . $file . "'
+            INTO TABLE " . self::RAWCOORDS . "
+            FIELDS TERMINATED BY '\t' IGNORE 1 LINES";
+        if ($this->query($SQL)) {
+            echo " complete\n";
+            return true;
+        }
+        else {
+            echo " failed\n";
+            return false;
+        }
+    }
 
 	/**
 	 * show a status bar in the console
