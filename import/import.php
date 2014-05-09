@@ -9,15 +9,15 @@
  * (2) Download geoplanet data from http://developer.yahoo.com/geo/geoplanet/data/
  * (3) Add tsv file loations to the import/files.ini
  * (4) cd to this dir and run this script from the command line: "php import.php"
- * 
- * Temp files are created in your system's (wait for it) temp directory, so ensure you have about 50GB 
+ *
+ * Temp files are created in your system's (wait for it) temp directory, so ensure you have about 50GB
  * avilable to be safe.
- * 
- * The import script takes a while to run as it builds indicies and pre-caches relationships.  Nearly all 
- * long-running scripts have been designed to pick-up where they left off, if interrupted .  Populating 
+ *
+ * The import script takes a while to run as it builds indicies and pre-caches relationships.  Nearly all
+ * long-running scripts have been designed to pick-up where they left off, if interrupted .  Populating
  * Descendants can take three days on a lower-end laptop -- query "select count(woeid) FROM geo_descendants"
  * to view progress that will not always be apparent on progress bar.
- * 
+ *
  * @package gplplanet
  * @author Tyler Bell tylerwbell[at]gmail[dot]com
  * @copyright (C) 2009-2011 - Tyler Bell
@@ -25,8 +25,7 @@
  */
 
 //runtime error reporting level
-error_reporting(E_ERROR); 		
-//error_reporting(E_ALL); 	
+error_reporting(E_ALL);
 
 //Get file locations from config
 $files = parse_ini_file('files.ini');
@@ -35,7 +34,7 @@ $files = parse_ini_file('files.ini');
 set_time_limit(0);		  		//no timeout (always the case with CLI tho)
 require_once ('class.geoimport.php');
 $importEngine = new geoimport; 	//uses db name from config file. Override by assigning var $importEngine->dbName = your_new_database_name
-$importProgress = "import";		//table name for tracking import progress					
+$importProgress = "import";		//table name for tracking import progress
 
 //check config file
 $thisDir = dirname(__FILE__);
@@ -45,27 +44,28 @@ if (is_readable($configFile)) {
 } else {
 	//can't operate without db configs, so barf and bail
 	if (is_file($configFile)){
-		$errMsg = "unreadable config file " . $configFile . "; check file permissions\n";	
+		$errMsg = "unreadable config file " . $configFile . "; check file permissions\n";
 	} else {
-		$errMsg = "missing config file " . $configFile . "\n";	
+		$errMsg = "missing config file " . $configFile . "\n";
 	}
-	echo $errMsg;
+    echo $errMsg;
 	exit;
 }
 
 $bail = false;
 if (!$cfg['host']){
-$errMsg = "No host provided in config file " . $configFile . "\n";	
+$errMsg = "No host provided in config file " . $configFile . "\n";
 	$bail = true;
 }
 if (!$cfg['username']){
-$errMsg = "No username provided in config file " . $configFile . "\n";	
+$errMsg = "No username provided in config file " . $configFile . "\n";
 	$bail = true;
-}		
+}
 if (!$cfg['database']){
-$errMsg = "No database name provided in config file " . $configFile . "\n";	
+$errMsg = "No database name provided in config file " . $configFile . "\n";
 	$bail = true;
-}			
+}
+
 if ($bail){
 	exit;
 }
@@ -137,22 +137,22 @@ switch ($lastStage) {
 			exit;
 		} else {
 			$importEngine->addTracker(4,$importProgress);
-		}	
-		
+		}
+
 	//populate places 5
 	case 4:
 		if (!$importEngine->populatePlaces()){
 			exit;
 		} else {
 			$importEngine->addTracker(5,$importProgress);
-		}					
+		}
 	//populate place type codes 6
 	case 5:
 		if (!$importEngine->addPlaceTypeCodes()){
 			exit;
 		} else {
 			$importEngine->addTracker(6,$importProgress);
-		}					
+		}
 	//populate place names 7
 	case 6:
 		//@todo: placenames table should be truncated, as this script cannot pick up where left off (efficiency)
@@ -160,45 +160,44 @@ switch ($lastStage) {
 			exit;
 		} else {
 			$importEngine->addTracker(7,$importProgress);
-		}					
+		}
 	//populate adjacencies 8
 	case 7:
 		if (!$importEngine->populateAdjacencies()){
 			exit;
 		} else {
 			$importEngine->addTracker(8,$importProgress);
-		}		
+		}
 	//populate parents 9
 	case 8:
 		if (!$importEngine->populateParents()){
 			exit;
 		} else {
 			$importEngine->addTracker(9,$importProgress);
-		}		
+		}
 	//populate children 10
 	case 9:
 		if (!$importEngine->populateChildren()){
 			exit;
 		} else {
 			$importEngine->addTracker(10,$importProgress);
-		}	
+		}
 	//populate ancestors 11
 	case 10:
 		if (!$importEngine->populateAncestors()){
 			exit;
 		} else {
 			$importEngine->addTracker(11,$importProgress);
-		}	
+		}
 	//populate descendants 12
 	case 11:
 		if (!$importEngine->populateDescendants()){
 			exit;
 		} else {
 			$importEngine->addTracker(12,$importProgress);
-		}	
-	//Complete import
-	case 12:
+		}
+    //Complete import
+    case 12:
 		$importEngine->dropTrackerTable($importProgress);
 		echo "Import complete\n";
 }
-
